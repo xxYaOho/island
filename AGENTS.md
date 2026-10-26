@@ -73,4 +73,5 @@ Island 是一座个人工作岛屿：**空白岛 + 基建**。提供规范与基
 ## 撰写与演进
 
 - 人类向说明见 `README.md`；Agent 以本文为准。冲突时先修门廊或 README。
+- 对话俚语 ↔ 正式用语对照见 `docs/vocabulary.md`（改写规范另议）。
 - 新技能只加在 `skills/`；补完后更新 First Time 指针，避免门廊变百科。
