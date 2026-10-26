@@ -47,6 +47,8 @@
 **/venv/
 
 # Agent
-.sisyphus/
-.agents/skills
+.sisyphus
+# .agents
+.claude
+.codex
 .mcp.json
