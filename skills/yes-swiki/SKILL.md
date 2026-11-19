@@ -5,7 +5,7 @@ description: >
   覆盖 INGEST、READ、MAINTAIN；不用于普通文档写作、一次性摘要或与项目知识库无关的检索。
 argument-hint: 收录、查阅或维护项目知识库
 metadata:
-  version: v0.6.0
+  version: v0.7.0
 ---
 
 # Yes! Simple Wiki

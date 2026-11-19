@@ -1,6 +1,6 @@
 ---
 metadata:
-  version: v0.6.0
+  version: v0.7.0
 ---
 
 <!-- YES_SWIKI_MANAGED_CORE:START -->
