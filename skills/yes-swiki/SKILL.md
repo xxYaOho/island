@@ -68,6 +68,22 @@ metadata: ~
 
 swarm-reader 只读并返回带来源的提炼和 `DOUBTS`；orchestrator 汇总跨 reader 的矛盾，确认后再决定是否进入 LINT。READ 不因其他馆藏告警转为维护任务。调用细节见 [swarm-reader](agents/swarm-reader.md)。
 
+## Code Wiki 能力
+
+项目可选维护 `docs/simple-wiki/code/`，让 agent 先获得代码模块认知，再按需读取源码。
+
+```text
+docs/simple-wiki/code/
+  INDEX.md   语义模块级代码索引
+  SCHEMA.md  代码索引格式与范围规则
+```
+
+代码源文件是该模块的 raw authority。代码条目直接引用仓库相对路径，使用 `F/R/A/S` 记录职责、关键关系、入口或契约，以及高风险约束。默认索引语义模块；入口、公共契约和高风险边界可以独立成条目；普通叶子文件由所属模块覆盖。
+
+`code-administrator` 按调用方提供的显式 scope 规划或更新代码 Wiki，写入范围由调用方提供。它返回代码单元计划、路径覆盖、条目变更、未验证项和验证结果。角色合同见 [code-administrator](agents/code-administrator.md)。
+
+代码 Wiki 使用自己的 `code/SCHEMA.md` 和 Git revision freshness。raw 材料的 `ingested/integrated` 状态以及 wiki 页的 `context` 预算适用于 `raw/` 与 `wiki/`，代码模块按自身规范记录来源和新鲜度。外层工作流负责决定何时调用该能力，以及是否与其他角色组合。
+
 ## MAINTAIN
 
 根据 doctor 的维护明细与 LINT 判断范围，派 curator `scope: targeted|full`。轻微、边界明确的问题用 `targeted`；严重、密集或持续的健康问题先向用户说明并确认，再直接派 `full`。不引入 Quality Auditor。
