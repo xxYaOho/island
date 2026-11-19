@@ -9,20 +9,21 @@ Island 是一座个人工作岛屿：**空白岛 + 基建**。提供规范与基
 ## Layout
 
 - 所有技能统一放在 `skills/<skill-id>/`（含 `SKILL.md`）
-- 用户入口门户：`skills/island/`（`/island` → 路由表）
-- 岛民说明书：由招募技能产出并存放在其约定目录（见 `skills/recruit/`）
+- **技能共同约束**：`skills/AGENTS.md`（改任何 skill 先读）
+- 用户入口：`skills/island/`（`/island` → 路由表）
+- agent role spec：由 `skills/recruit/` 产出并存放在其约定目录
 - `docs/`：门廊之外的说明与笔记；不放可安装技能
-- `skills/` 下旧占位目录可重命名或淘汰，以现行技能名为准
 
 ## First Time
 
 1. 读完本文（门廊）
-2. **用户入口**：`/island` → 读 `skills/island/SKILL.md`（薄门户；按路由表交地标）
-3. 设计岛民 / 招募 → 读 `skills/recruit/SKILL.md`（及同目录设计规范）
-4. 动某个地标 → 读 `skills/<该技能>/SKILL.md`
-5. 项目侧选用角色 → 近处说明优先；**不改**岛民说明书正文
+2. 读 `skills/AGENTS.md`（技能共同约束与清单）
+3. **用户入口**：`/island` → 读 `skills/island/SKILL.md`
+4. 创建 / 修订 agent role → 读 `skills/recruit/SKILL.md`（及同目录 SCHEMA）
+5. 动某个 skill → 先读该目录 `AGENTS.md`，再读 `SKILL.md`
+6. 项目侧选用角色 → 近处说明优先；**不改** role spec 正文
 
-不要跳过门廊直接改技能。人类日常只需记 `/island`。
+不要跳过门廊与 `skills/AGENTS.md` 直接改技能。人类日常只需记 `/island`。
 
 ## Climate（气候）
 
@@ -38,21 +39,13 @@ Island 是一座个人工作岛屿：**空白岛 + 基建**。提供规范与基
 - 岛民说明书不随单次项目改版；项目差异进任务说明
 - 酒馆 / 组队：按名引用岛民，为项目派工
 
-## Landmarks（地标，按需）
+## Skills
 
-地标也是 `skills/` 下的技能，按需添加；未就绪不承诺可用。意图 → 地标的对照表以 `skills/island` 路由表为准。
+可安装 skill 的清单与共同约束见 `skills/AGENTS.md`。意图 → skill 的对照以 `skills/island` 路由表为准。
 
-| 地标 | 意图 | 技能 |
-|---|---|---|
-| 门户 | `/island` 入口与路由 | `skills/island` |
-| 招募台 | 设计并落盘岛民 | `skills/recruit` |
-| 图书馆 | 可复用知识真源 | （待建） |
-| 小酒馆 | 项目组队 / 选人 | （待建） |
-| 规划台 | 可切片计划 | （待建） |
-| 篝火边 | 沉思对话 | （待建） |
-| 设计工作室 | 设计落地与相关协作 | （待建） |
-| 交接处 | handoff / 状态恢复 | （待建） |
-| 引导 | 指引与搬家 | （待建） |
+已收拢：`island`、`recruit`、`yes-subagents`、`yes-swiki`、`yes-handoff`、`yes-designer`、`go-spec`、`go-trail`。
+
+尚未收拢的能力（路由表中仍标未就绪）：项目组队 / 选人、向导。
 
 ## Do not
 
@@ -68,10 +61,10 @@ Island 是一座个人工作岛屿：**空白岛 + 基建**。提供规范与基
 
 - **岛主**：本仓维护者；与 Agent 对等讨论产品与架构
 - **本仓**：Island 图纸与基建
-- **外部参考**（可引用、非本仓真源）：既有 harness / 旅程类技能；早期重型编排仅作语感参考
+- **外部参考**（可引用、非本仓真源）：各 skill 迁入前的独立仓库；早期重型编排仅作语感参考，不收入本仓
 
 ## 撰写与演进
 
 - 人类向说明见 `README.md`；Agent 以本文为准。冲突时先修门廊或 README。
 - 对话俚语 ↔ 正式用语对照见 `docs/vocabulary.md`（改写规范另议）。
-- 新技能只加在 `skills/`；补完后更新 First Time 指针，避免门廊变百科。
+- 新技能只加在 `skills/`，并同时更新 `skills/AGENTS.md` 清单与（如需要）`skills/island` 路由表；避免把门廊写成百科。

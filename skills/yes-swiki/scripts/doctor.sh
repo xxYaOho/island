@@ -1,0 +1,566 @@
+#!/usr/bin/env bash
+# scripts/doctor.sh — simple-wiki 馆藏健康状态上报 (设计: .tmp/design-wiki-doctor.md v10 §4)
+#
+# 用法: bash doctor.sh [--detail [ingest|maintain|all]]
+# 输出: 头条层 KEY=VALUE (机器解析, 按首个 = 分割); --detail 追加名单层 KEY: value (按首个 ": " 分割)。
+# 诊断与告警走 stderr。exit 0 = 脚本正常 (含 NEED_INIT=true), 非零 = 脚本自身故障。
+# 契约要点:
+#   - NEED_INIT 首位短路: 目录不存在或缺骨架件时仅输出 NEED_INIT=true + WIKI_ROOT 两行
+#   - 实算 = 全文件含 frontmatter, 经 calculation-token.sh 直接调用 (单一真源)
+#   - frontmatter 顶层键 = 行首顶格; 值剥行内注释 (` #` 起) + trim
+#   - 阈值: WIKI_PAGE_LIMIT (默认 8k) / WIKI_INDEX_LIMIT (默认 32k), 上限语义 (>)
+
+set -euo pipefail
+
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+DETAIL_SCOPE=""
+case "$#" in
+  0) ;;
+  1)
+    if [[ "$1" == "--detail" ]]; then DETAIL_SCOPE="all"; else
+      printf '用法: %s [--detail [ingest|maintain|all]]\n' "$(basename "$0")" >&2
+      exit 1
+    fi
+    ;;
+  2)
+    if [[ "$1" == "--detail" && ( "$2" == "ingest" || "$2" == "maintain" || "$2" == "all" ) ]]; then
+      DETAIL_SCOPE="$2"
+    else
+      printf '用法: %s [--detail [ingest|maintain|all]]\n' "$(basename "$0")" >&2
+      exit 1
+    fi
+    ;;
+  *)
+    printf '用法: %s [--detail [ingest|maintain|all]]\n' "$(basename "$0")" >&2
+    exit 1
+    ;;
+esac
+
+# --- 根解析: 守卫阶梯 (§4, 单一规范源) ------------------------------------
+TOPLEVEL="$(git rev-parse --show-toplevel 2>/dev/null || true)"
+
+resolve_root() {
+  local given="${1:-}"
+  local root=""
+  if [[ -n "$given" ]]; then
+    root="$given"
+    # 归一化: 相对值以 CWD 锚定 (字符串级, 目录不存在亦安全)
+    if [[ "$root" != /* ]]; then root="$PWD/$root"; fi
+    # 去尾部斜杠 (保留根 /)
+    while [[ "$root" != "/" && "$root" == */ ]]; do root="${root%/}"; done
+    # 目录存在时附加物理解析
+    if [[ -d "$root" ]]; then root="$(cd "$root" && pwd -P)"; fi
+  elif [[ -d "$PWD/docs/simple-wiki" ]]; then
+    root="$PWD/docs/simple-wiki"
+  elif [[ -n "$TOPLEVEL" && "$TOPLEVEL" != "$PWD" && -d "$TOPLEVEL/docs/simple-wiki" ]]; then
+    printf 'doctor: 重定向至 git toplevel %s\n' "$TOPLEVEL" >&2
+    root="$TOPLEVEL/docs/simple-wiki"
+  elif [[ -n "$TOPLEVEL" && "$TOPLEVEL" != "$PWD" ]]; then
+    printf 'doctor: 重定向至 git toplevel %s\n' "$TOPLEVEL" >&2
+    root="$TOPLEVEL/docs/simple-wiki"
+  else
+    local marker_found=0
+    local m
+    for m in AGENTS.md CLAUDE.md package.json pyproject.toml go.mod Cargo.toml mise.toml .mise.toml; do
+      if [[ -e "$PWD/$m" ]]; then marker_found=1; break; fi
+    done
+    if [[ $marker_found -eq 0 ]]; then
+      printf 'doctor: CWD 不像工作区根 (非 git 目录且无项目标记), 建议核对位置或显式设置 WIKI_ROOT\n' >&2
+    fi
+    root="$PWD/docs/simple-wiki"
+  fi
+  printf '%s' "$root"
+}
+
+WIKI_ROOT_RESOLVED="$(resolve_root "${WIKI_ROOT:-}")"
+PAGE_LIMIT="${WIKI_PAGE_LIMIT:-8}"
+INDEX_LIMIT="${WIKI_INDEX_LIMIT:-32}"
+
+# --- 骨架件判定 → 首位短路 ------------------------------------------------
+SKELETON_MISSING=0
+if [[ ! -d "$WIKI_ROOT_RESOLVED" ]]; then
+  SKELETON_MISSING=1
+else
+  for f in raw wiki LOG.md SCHEMA.md LLM_WIKI.md LINT.md; do
+    if [[ ! -e "$WIKI_ROOT_RESOLVED/$f" ]]; then SKELETON_MISSING=1; break; fi
+  done
+  [[ -e "$WIKI_ROOT_RESOLVED/wiki/INDEX.md" ]] || SKELETON_MISSING=1
+fi
+
+if [[ $SKELETON_MISSING -eq 1 ]]; then
+  printf 'NEED_INIT=true\n'
+  printf 'WIKI_ROOT=%s\n' "$WIKI_ROOT_RESOLVED"
+  printf 'SKILL_SCRIPTS_DIR=%s\n' "$SCRIPT_DIR"
+  exit 0
+fi
+
+# --- 工具函数 ---------------------------------------------------------------
+# fm_top_value <file> <key>: 取 frontmatter 顶层键值 (剥行内注释 + trim); 未找到输出空
+fm_top_value() {
+  awk -v k="$2" '
+    NR==1 { if ($0 != "---") exit; infm=1; next }
+    infm && /^---[[:space:]]*$/ { exit }
+    infm && /^[[:space:]]/ { next }
+    infm && index($0, ":") > 0 {
+      pos = index($0, ":")
+      if (substr($0, 1, pos-1) == k) {
+        val = substr($0, pos+1)
+        c = index(val, " #")
+        if (c > 0) val = substr(val, 1, c-1)
+        gsub(/^[[:space:]]+|[[:space:]]+$/, "", val)
+        print val
+        exit
+      }
+    }
+  ' "$1" 2>/dev/null || true
+}
+
+# has_fm_block <file>: 首行为 --- 且存在闭合 ---
+has_fm_block() {
+  awk 'NR==1 { if ($0 != "---") exit 1; next } /^---[[:space:]]*$/ { found=1; exit 0 } END { if (!found) exit 1 }' "$1" 2>/dev/null
+}
+
+schema_metadata_version() {
+  awk '
+    NR==1 { if ($0 != "---") exit; infm=1; next }
+    infm && /^---[[:space:]]*$/ { exit }
+    infm && /^metadata:[[:space:]]*$/ { metadata=1; next }
+    infm && metadata && /^[[:space:]]+version:[[:space:]]*/ {
+      value=$0; sub(/^[[:space:]]+version:[[:space:]]*/, "", value)
+      sub(/[[:space:]]+#.*$/, "", value)
+      gsub(/^[[:space:]]+|[[:space:]]+$/, "", value)
+      print value; exit
+    }
+    infm && /^[^[:space:]]/ { metadata=0 }
+  ' "$1" 2>/dev/null || true
+}
+
+schema_has_metadata() {
+  awk 'NR==1 { if ($0 != "---") exit; infm=1; next } infm && /^---[[:space:]]*$/ { exit } infm && /^metadata:[[:space:]]*$/ { found=1; exit } END { exit found ? 0 : 1 }' "$1" 2>/dev/null
+}
+
+version_compare() {
+  local left="$1" right="$2"
+  [[ "$left" =~ ^v([0-9]+)\.([0-9]+)\.([0-9]+)$ ]] || return 2
+  local l1="${BASH_REMATCH[1]}" l2="${BASH_REMATCH[2]}" l3="${BASH_REMATCH[3]}"
+  [[ "$right" =~ ^v([0-9]+)\.([0-9]+)\.([0-9]+)$ ]] || return 2
+  local r1="${BASH_REMATCH[1]}" r2="${BASH_REMATCH[2]}" r3="${BASH_REMATCH[3]}"
+  if (( l1 < r1 || (l1 == r1 && l2 < r2) || (l1 == r1 && l2 == r2 && l3 < r3) )); then return 1; fi
+  if (( l1 > r1 || (l1 == r1 && l2 > r2) || (l1 == r1 && l2 == r2 && l3 > r3) )); then return 3; fi
+  return 0
+}
+
+managed_core_matches_bundle() {
+  [[ -f "$BUNDLED_SCHEMA" ]] || return 1
+  cmp -s \
+    <(awk '/^<!-- YES_SWIKI_MANAGED_CORE:START -->$/ { emit=1 } emit { print } /^<!-- YES_SWIKI_MANAGED_CORE:END -->$/ { exit }' "$SCHEMA_FILE") \
+    <(awk '/^<!-- YES_SWIKI_MANAGED_CORE:START -->$/ { emit=1 } emit { print } /^<!-- YES_SWIKI_MANAGED_CORE:END -->$/ { exit }' "$BUNDLED_SCHEMA")
+}
+
+# actual_k <file>: calculation-token.sh 实算, 输出 k 与 token (tab 分隔)
+actual_k() {
+  local out
+  out="$(bash "$SCRIPT_DIR/calculation-token.sh" "$1")"
+  local t k
+  t="$(printf '%s\n' "$out" | sed -n 's/^tokens=//p')"
+  k="$(printf '%s\n' "$out" | sed -n 's/^context=//p')"
+  printf '%s\t%s' "$k" "$t"
+}
+
+SCHEMA_FILE="$WIKI_ROOT_RESOLVED/SCHEMA.md"
+BUNDLED_SCHEMA="$SCRIPT_DIR/../reference/SCHEMA.md"
+if ! schema_has_metadata "$BUNDLED_SCHEMA"; then
+  printf 'doctor: bundled SCHEMA 缺少 metadata.version (%s)\n' "$BUNDLED_SCHEMA" >&2
+  exit 1
+fi
+SCHEMA_LATEST_VERSION="$(schema_metadata_version "$BUNDLED_SCHEMA")"
+if [[ ! "$SCHEMA_LATEST_VERSION" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+  printf 'doctor: bundled SCHEMA 的 metadata.version 非法 (%s)\n' "$BUNDLED_SCHEMA" >&2
+  exit 1
+fi
+SCHEMA_VERSION=""
+SCHEMA_STATUS=""
+if ! schema_has_metadata "$SCHEMA_FILE"; then
+  SCHEMA_VERSION="missing"
+  SCHEMA_STATUS="legacy"
+else
+  SCHEMA_VERSION="$(schema_metadata_version "$SCHEMA_FILE")"
+  if [[ ! "$SCHEMA_VERSION" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+    SCHEMA_STATUS="invalid"
+  else
+    MANAGED_COUNT="$(grep -c '^<!-- YES_SWIKI_MANAGED_CORE:START -->$' "$SCHEMA_FILE" 2>/dev/null || true)"
+    MANAGED_END_COUNT="$(grep -c '^<!-- YES_SWIKI_MANAGED_CORE:END -->$' "$SCHEMA_FILE" 2>/dev/null || true)"
+    LOCAL_COUNT="$(grep -c '^<!-- YES_SWIKI_LOCAL_EXTENSIONS:START -->$' "$SCHEMA_FILE" 2>/dev/null || true)"
+    LOCAL_END_COUNT="$(grep -c '^<!-- YES_SWIKI_LOCAL_EXTENSIONS:END -->$' "$SCHEMA_FILE" 2>/dev/null || true)"
+    if version_compare "$SCHEMA_VERSION" "$SCHEMA_LATEST_VERSION"; then
+      VERSION_RESULT=0
+    else
+      VERSION_RESULT=$?
+    fi
+    if [[ $VERSION_RESULT -eq 1 ]]; then
+      SCHEMA_STATUS="outdated"
+    elif [[ $VERSION_RESULT -eq 3 ]]; then
+      SCHEMA_STATUS="skill-outdated"
+    elif [[ "$MANAGED_COUNT" != "1" || "$MANAGED_END_COUNT" != "1" || "$LOCAL_COUNT" != "1" || "$LOCAL_END_COUNT" != "1" ]] || ! managed_core_matches_bundle; then
+      SCHEMA_STATUS="invalid"
+    else
+      SCHEMA_STATUS="current"
+    fi
+  fi
+fi
+
+RAW_COUNT=0; RAW_PENDING=0; RAW_PENDING_EVID=0; RAW_UNINTEGRATED=0; RAW_INGEST_ORPHAN=0
+RAW_INVALID_FM=0; RAW_INVALID_STATE=0
+PAGE_COUNT=0; PAGE_OVERSIZED=0; CONTEXT_DRIFT=0; XLINK_DANGLING=0; XLINK_RAW=0
+INDEX_ROWS=0; INDEX_UNLISTED=0; INDEX_DANGLING=0; INDEX_CONTEXT=0
+LINT_BODY=0; LINT_ESCALATE=0; LINT_PARSE="ok"; PAGE_CONTESTED_UNLINTED=0
+D_P=""; D_PE=""; D_NF=""; D_UI=""; D_UR=""; D_IS=""; D_CU=""; D_IFM=""; D_OS=""; D_DR=""; D_XD=""; D_XR=""; D_IU=""; D_ID=""; D_LU=""; D_LS=""
+INGESTED_RAW=()
+UNINTEGRATED_RAW=()
+CONTESTED_PAGES=()
+
+# --- raw/ 检查 ---------------------------------------------------------------
+RAW_COUNT="$(find "$WIKI_ROOT_RESOLVED/raw" -maxdepth 1 -type f 2>/dev/null | wc -l | tr -d ' ')"
+
+while IFS= read -r f; do
+  [[ -z "$f" ]] && continue
+  name="$(basename "$f")"
+  if [[ "$name" != *.md ]]; then continue; fi
+  if ! head -n 1 "$f" | grep -q '^---$'; then
+    RAW_INVALID_FM=$((RAW_INVALID_FM+1))
+    D_IFM="${D_IFM}NO_FRONTMATTER: raw/${name}
+"
+    continue
+  fi
+  if ! has_fm_block "$f"; then
+    RAW_INVALID_FM=$((RAW_INVALID_FM+1))
+    D_IFM="${D_IFM}INVALID_FM: raw/${name} (unclosed block)
+"
+    continue
+  fi
+  cls="$(fm_top_value "$f" class)"
+  ing="$(fm_top_value "$f" ingested)"
+  integrated="$(fm_top_value "$f" integrated)"
+  bad=""
+  if [[ -z "$cls" ]]; then bad="missing class key"; fi
+  if [[ -z "$ing" ]]; then bad="${bad:+$bad; }missing ingested key"; fi
+  if [[ -z "$integrated" ]]; then bad="${bad:+$bad; }missing integrated key"; fi
+  if [[ -n "$cls" && "$cls" != "material" && "$cls" != "evidence" ]]; then bad="${bad:+$bad; }class not in enum"; fi
+  if [[ -n "$ing" && "$ing" != "true" && "$ing" != "false" ]]; then bad="${bad:+$bad; }ingested not bool"; fi
+  if [[ -n "$integrated" && "$integrated" != "true" && "$integrated" != "false" ]]; then bad="${bad:+$bad; }integrated not bool"; fi
+  if [[ -n "$bad" ]]; then
+    RAW_INVALID_FM=$((RAW_INVALID_FM+1))
+    D_IFM="${D_IFM}INVALID_FM: raw/${name} (${bad})
+"
+    continue
+  fi
+  if [[ "$ing" == "false" && "$integrated" == "true" ]]; then
+    RAW_INVALID_STATE=$((RAW_INVALID_STATE+1))
+    D_IS="${D_IS}INVALID_STATE: raw/${name} (ingested=false, integrated=true)
+"
+    continue
+  fi
+  if [[ "$ing" == "false" ]]; then
+    if [[ "$cls" == "material" ]]; then
+      RAW_PENDING=$((RAW_PENDING+1))
+      D_P="${D_P}PENDING: raw/${name}
+"
+    else
+      RAW_PENDING_EVID=$((RAW_PENDING_EVID+1))
+      D_PE="${D_PE}PENDING_EVIDENCE: raw/${name}
+"
+    fi
+  else
+    INGESTED_RAW+=("raw/${name}")
+    if [[ "$integrated" == "false" ]]; then
+      RAW_UNINTEGRATED=$((RAW_UNINTEGRATED+1))
+      UNINTEGRATED_RAW+=("raw/${name}")
+      D_UI="${D_UI}UNINTEGRATED: raw/${name}
+"
+    fi
+  fi
+done < <(find "$WIKI_ROOT_RESOLVED/raw" -maxdepth 1 -type f -name '*.md' 2>/dev/null | sort)
+
+# --- wiki/ 页检查 ------------------------------------------------------------
+shopt -s nullglob
+WIKI_FILES=()
+for f in "$WIKI_ROOT_RESOLVED/wiki"/*.md; do
+  name="$(basename "$f")"
+  [[ "$name" == "INDEX.md" ]] && continue
+  WIKI_FILES+=("$f")
+done
+shopt -u nullglob
+PAGE_COUNT=${#WIKI_FILES[@]}
+
+# 页断链扫描: 目标分类 (../raw/ → XLINK_RAW; 同目录 .md → XLINK_DANGLING; 其余声明放弃)
+scan_page_links() {
+  local f="$1" src="$2"
+  grep -oE '\[[^]]*\]\([^)]+\)' "$f" 2>/dev/null | sed 's/^\[[^]]*\](//; s/)$//' | while IFS= read -r target; do
+    target="${target%%[[:space:]]*}"                # 剥 "title" 尾部
+    target="${target%%#*}"                          # 剥锚点
+    case "$target" in
+      http://*|https://*|mailto:*|'') continue ;;
+    esac
+    target="${target#./}"
+    case "$target" in
+      ../raw/*.md)
+        if [[ ! -f "$WIKI_ROOT_RESOLVED/raw/$(basename "$target")" ]]; then
+          printf 'XRAW\twiki/%s\traw/%s\n' "$src" "$(basename "$target")"
+        fi
+        ;;
+      *.md)
+        if [[ "$target" == */* ]]; then continue; fi   # 非同目录相对形态: 声明放弃
+        if [[ ! -f "$WIKI_ROOT_RESOLVED/wiki/$target" ]]; then
+          printf 'XD\twiki/%s\twiki/%s\n' "$src" "$target"
+        fi
+        ;;
+    esac
+  done
+}
+
+# frontmatter sources 条目 (inline 与块式; 相对库根)
+scan_sources() {
+  local f="$1" src="$2"
+  awk -v src="$src" '
+    NR==1 { if ($0=="---") { in_fm=1; next } else exit }
+    in_fm && /^---[[:space:]]*$/ { exit }
+    in_fm && /^sources:/ {
+      val=$0
+      sub(/^sources:[[:space:]]*/, "", val)
+      if (val ~ /^\[/) {                          # inline 列表
+        gsub(/^\[|\]$/, "", val)
+        n=split(val, items, ",")
+        for (i=1;i<=n;i++) emit(items[i])
+        srcs_done=1; next
+      } else if (val ~ /^-/) {                    # 同行块式首项
+        emit(val); in_block=1; next
+      } else { in_block=1; next }                 # 块式, 条目在后续行
+    }
+    in_fm && in_block && /^[-[:space:]]/ && !/^sources:/ {
+      if ($0 ~ /^[[:space:]]*-/) { emit($0) } else { in_block=0 }
+    }
+    in_fm && !/^[-[:space:]]/ { in_block=0 }
+    function emit(s,  t) {
+      sub(/^[[:space:]]*-[[:space:]]*/, "", s)
+      sub(/^#.*$/, "", s); sub(/[[:space:]]#.*$/, "", s)
+      gsub(/^[[:space:]]+|[[:space:]]+$/, "", s)
+      if (s != "" && s !~ /\.md$/) s = s ".md"
+      if (s != "" && s !~ /^raw\//) s = "raw/" s
+      if (s != "") print "XSRC\twiki/" src "\t" s
+    }
+  ' "$f" 2>/dev/null
+}
+
+LINK_RESULTS=""
+for f in "${WIKI_FILES[@]}"; do
+  name="$(basename "$f")"
+
+  # 实算与 drift
+  read -r ak at <<<"$(actual_k "$f")"
+  if (( ak > PAGE_LIMIT )); then
+    PAGE_OVERSIZED=$((PAGE_OVERSIZED+1))
+    D_OS="${D_OS}OVERSIZED: wiki/${name} (${ak}k)
+"
+  fi
+  declared="$(fm_top_value "$f" context)"
+  if [[ -n "$declared" && "$declared" =~ ^[0-9]+$ && "$declared" != "$ak" ]]; then
+    CONTEXT_DRIFT=$((CONTEXT_DRIFT+1))
+    D_DR="${D_DR}DRIFT: wiki/${name} (declared ${declared}k, actual ${ak}k)
+"
+  fi
+  if [[ "$(fm_top_value "$f" status)" == "contested" ]]; then
+    CONTESTED_PAGES+=("$name")
+  fi
+
+  LINK_RESULTS="${LINK_RESULTS}$(scan_page_links "$f" "$name")
+$(scan_sources "$f" "$name")
+"
+done
+
+SOURCE_REFS=""
+SOURCE_PAGE_REFS=""
+while IFS=$'\t' read -r kind src target; do
+  [[ -z "$kind" ]] && continue
+  if [[ "$kind" == "XD" ]]; then
+    XLINK_DANGLING=$((XLINK_DANGLING+1))
+    D_XD="${D_XD}XLINK_DANGLING: ${src} -> ${target}
+"
+  elif [[ "$kind" == "XRAW" ]]; then
+    XLINK_RAW=$((XLINK_RAW+1))
+    D_XR="${D_XR}XLINK_RAW: ${src} (link) -> ${target}
+"
+  elif [[ "$kind" == "XSRC" ]]; then
+    SOURCE_REFS="${SOURCE_REFS}${target}
+"
+    SOURCE_PAGE_REFS="${SOURCE_PAGE_REFS}${target}"$'\t'"${src}"$'\n'
+    if [[ ! -f "$WIKI_ROOT_RESOLVED/$target" ]]; then
+      XLINK_RAW=$((XLINK_RAW+1))
+      D_XR="${D_XR}XLINK_RAW: ${src} (sources) -> ${target}
+"
+    fi
+  fi
+done <<<"$LINK_RESULTS"
+
+for raw_path in "${UNINTEGRATED_RAW[@]:-}"; do
+  [[ -z "$raw_path" ]] && continue
+  while IFS=$'\t' read -r source_raw source_page; do
+    [[ "$source_raw" == "$raw_path" && -n "$source_page" ]] || continue
+    D_UR="${D_UR}UNINTEGRATED_SOURCE: ${raw_path} -> ${source_page}
+"
+  done <<<"$SOURCE_PAGE_REFS"
+done
+
+for raw_path in "${INGESTED_RAW[@]:-}"; do
+  [[ -z "$raw_path" ]] && continue
+  if ! grep -Fqx "$raw_path" <<<"$SOURCE_REFS"; then
+    RAW_INGEST_ORPHAN=$((RAW_INGEST_ORPHAN+1))
+    D_NF="${D_NF}INGEST_ORPHAN: ${raw_path}
+"
+  fi
+done
+
+# --- INDEX 检查 --------------------------------------------------------------
+INDEX_FILE="$WIKI_ROOT_RESOLVED/wiki/INDEX.md"
+INDEX_TARGETS=""
+if [[ -f "$INDEX_FILE" ]]; then
+  while IFS= read -r line; do
+    [[ -z "$line" ]] && continue
+    INDEX_ROWS=$((INDEX_ROWS+1))
+    tgt="$(printf '%s\n' "$line" | sed -n 's/.*](\([^)]*\)).*/\1/p' | sed 's/#.*$//; s/^\.\///')"
+    INDEX_TARGETS="${INDEX_TARGETS}${tgt}
+"
+  done < <(grep -E '^- \[' "$INDEX_FILE" || true)
+  read -r ik it <<<"$(actual_k "$INDEX_FILE")"
+  INDEX_CONTEXT="$ik"
+fi
+
+# INDEX_DANGLING: 条目行目标不存在
+while IFS= read -r tgt; do
+  [[ -z "$tgt" ]] && continue
+  if [[ ! -f "$WIKI_ROOT_RESOLVED/wiki/$tgt" ]]; then
+    INDEX_DANGLING=$((INDEX_DANGLING+1))
+    D_ID="${D_ID}INDEX_DANGLING: wiki/${tgt}
+"
+  fi
+done <<<"$INDEX_TARGETS"
+
+# INDEX_UNLISTED: 页无对应条目
+for f in "${WIKI_FILES[@]}"; do
+  name="$(basename "$f")"
+  if ! grep -qF "](${name})" "$INDEX_FILE" 2>/dev/null; then
+    INDEX_UNLISTED=$((INDEX_UNLISTED+1))
+    D_IU="${D_IU}INDEX_UNLISTED: wiki/${name}
+"
+  fi
+done
+
+# --- LINT 解析 ---------------------------------------------------------------
+LINT_FILE="$WIKI_ROOT_RESOLVED/LINT.md"
+SEP_COUNT="$(grep -c '^## ESCALATE$' "$LINT_FILE" 2>/dev/null || true)"
+[[ -z "$SEP_COUNT" ]] && SEP_COUNT=0
+LINT_TYPES_OUT=""
+if [[ "$SEP_COUNT" -ne 1 ]]; then
+  LINT_PARSE="dirty"
+  if [[ "$SEP_COUNT" -eq 0 ]]; then
+    D_LS="LINT_STRUCTURE: 分隔符缺失
+"
+  else
+    D_LS="LINT_STRUCTURE: 分隔符出现 ${SEP_COUNT} 次
+"
+  fi
+  # 无法可靠分区: body/escalate 计数按全文 - 行近似 (标记 dirty 后计数不可信)
+  LINT_BODY="$(grep -c '^- ' "$LINT_FILE" 2>/dev/null || true)"
+  [[ -z "$LINT_BODY" ]] && LINT_BODY=0
+else
+  lint_parse_results="$(awk '
+    BEGIN { sep=0; body=0; esc=0; dirty=0 }
+    /^## ESCALATE$/ { sep=1; next }
+    /^- / {
+      n = split($0, cols, "|")
+      if (n >= 3) {
+        t = cols[2]; gsub(/^[[:space:]]+|[[:space:]]+$/, "", t)
+        if (t=="contradiction"||t=="stale"||t=="orphan"||t=="index-drift"||t=="other") {
+          if (sep==0) { body++; types[t]++ } else { esc++ }
+          next
+        }
+      }
+      dirty=1
+    }
+    END {
+      printf "%d\t%d\t%d\t", body, esc, dirty
+      first=1
+      for (k in types) { if (!first) printf ","; printf "%s:%d", k, types[k]; first=0 }
+      printf "\n"
+    }
+  ' "$LINT_FILE")"
+  IFS=$'\t' read -r LINT_BODY LINT_ESCALATE LINT_DIRTY LINT_TYPES_OUT <<<"$lint_parse_results"
+  if [[ "$LINT_DIRTY" == "1" ]]; then
+    LINT_PARSE="dirty"
+    D_LU="$(awk '
+      /^## ESCALATE$/ { sep=1 }
+      /^- / {
+        n = split($0, cols, "|")
+        ok = 0
+        if (n >= 3) {
+          t = cols[2]; gsub(/^[[:space:]]+|[[:space:]]+$/, "", t)
+          if (t=="contradiction"||t=="stale"||t=="orphan"||t=="index-drift"||t=="other") ok=1
+        }
+        if (!ok) {
+          line=$0; if (length(line)>80) line=substr(line,1,80) "..."
+          printf "LINT_UNPARSED: %s\n", line
+        }
+      }
+    ' "$LINT_FILE")"
+  fi
+fi
+
+for page_name in "${CONTESTED_PAGES[@]:-}"; do
+  [[ -z "$page_name" ]] && continue
+  short_name="${page_name%.md}"
+  if ! grep -Fq -- "- ${page_name} |" "$LINT_FILE" 2>/dev/null && \
+     ! grep -Fq -- "- ${short_name} |" "$LINT_FILE" 2>/dev/null && \
+     ! grep -Fq -- "- wiki/${page_name} |" "$LINT_FILE" 2>/dev/null && \
+     ! grep -Fq -- "- wiki/${short_name} |" "$LINT_FILE" 2>/dev/null; then
+    PAGE_CONTESTED_UNLINTED=$((PAGE_CONTESTED_UNLINTED+1))
+    D_CU="${D_CU}CONTESTED_UNLINTED: wiki/${page_name}
+"
+  fi
+done
+
+# --- 输出 --------------------------------------------------------------------
+printf 'NEED_INIT=false\n'
+printf 'WIKI_ROOT=%s\n' "$WIKI_ROOT_RESOLVED"
+printf 'SKILL_SCRIPTS_DIR=%s\n' "$SCRIPT_DIR"
+printf 'SCHEMA_VERSION=%s\n' "$SCHEMA_VERSION"
+printf 'SCHEMA_LATEST_VERSION=%s\n' "$SCHEMA_LATEST_VERSION"
+printf 'SCHEMA_STATUS=%s\n' "$SCHEMA_STATUS"
+printf 'RAW_COUNT=%s\n' "$RAW_COUNT"
+printf 'RAW_PENDING=%s\n' "$RAW_PENDING"
+printf 'RAW_PENDING_EVIDENCE=%s\n' "$RAW_PENDING_EVID"
+printf 'RAW_UNINTEGRATED=%s\n' "$RAW_UNINTEGRATED"
+printf 'RAW_INGEST_ORPHAN=%s\n' "$RAW_INGEST_ORPHAN"
+printf 'RAW_INVALID_STATE=%s\n' "$RAW_INVALID_STATE"
+printf 'RAW_INVALID_FM=%s\n' "$RAW_INVALID_FM"
+printf 'PAGE_COUNT=%s\n' "$PAGE_COUNT"
+printf 'PAGE_OVERSIZED=%s\n' "$PAGE_OVERSIZED"
+printf 'CONTEXT_DRIFT=%s\n' "$CONTEXT_DRIFT"
+printf 'XLINK_DANGLING=%s\n' "$XLINK_DANGLING"
+printf 'XLINK_RAW=%s\n' "$XLINK_RAW"
+printf 'INDEX_ROWS=%s\n' "$INDEX_ROWS"
+printf 'INDEX_UNLISTED=%s\n' "$INDEX_UNLISTED"
+printf 'INDEX_DANGLING=%s\n' "$INDEX_DANGLING"
+printf 'INDEX_CONTEXT=%s\n' "$INDEX_CONTEXT"
+printf 'LINT_BODY=%s\n' "$LINT_BODY"
+printf 'LINT_ESCALATE=%s\n' "$LINT_ESCALATE"
+printf 'LINT_TYPES=%s\n' "$LINT_TYPES_OUT"
+printf 'LINT_PARSE=%s\n' "$LINT_PARSE"
+printf 'PAGE_CONTESTED_UNLINTED=%s\n' "$PAGE_CONTESTED_UNLINTED"
+if (( INDEX_CONTEXT > INDEX_LIMIT )); then
+  printf 'doctor: INDEX_CONTEXT %sk 超过上限 %sk (WIKI_INDEX_LIMIT), 建议与用户讨论收纳\n' "$INDEX_CONTEXT" "$INDEX_LIMIT" >&2
+fi
+
+case "$DETAIL_SCOPE" in
+  ingest) printf '%b' "$D_P" "$D_PE" "$D_UI" "$D_UR" "$D_NF" "$D_IS" "$D_IFM" ;;
+  maintain) printf '%b' "$D_NF" "$D_CU" "$D_IS" "$D_IFM" "$D_OS" "$D_DR" "$D_XD" "$D_XR" "$D_IU" "$D_ID" "$D_LU" "$D_LS" ;;
+  all) printf '%b' "$D_P" "$D_PE" "$D_UI" "$D_UR" "$D_NF" "$D_IS" "$D_CU" "$D_IFM" "$D_OS" "$D_DR" "$D_XD" "$D_XR" "$D_IU" "$D_ID" "$D_LU" "$D_LS" ;;
+esac

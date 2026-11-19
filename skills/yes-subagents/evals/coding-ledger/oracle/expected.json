@@ -1,0 +1,236 @@
+{
+  "thin": {
+    "summary": {
+      "would_add": 2,
+      "duplicates": 1,
+      "conflicts": 0,
+      "rejected": 0
+    },
+    "transaction_count": 1
+  },
+  "thick_m1": {
+    "imports": {
+      "alpha_primary": {
+        "added": 8,
+        "duplicates": 1,
+        "conflicts": 0,
+        "rejected": 1
+      },
+      "beta_primary": {
+        "added": 5,
+        "duplicates": 0,
+        "conflicts": 0,
+        "rejected": 1
+      },
+      "alpha_repeat": {
+        "added": 0,
+        "duplicates": 9,
+        "conflicts": 0,
+        "rejected": 1
+      },
+      "alpha_conflict": {
+        "added": 0,
+        "duplicates": 0,
+        "conflicts": 1,
+        "rejected": 0
+      }
+    },
+    "transaction_count": 14,
+    "transactions": {
+      "alpha|alpha-main|A-1001": {
+        "occurred_at": "2026-08-31T08:15:00+08:00",
+        "amount_minor": -4200,
+        "currency": "CNY",
+        "kind": "expense",
+        "target": "Metro Market",
+        "category": "日用",
+        "source_file": "seed-alpha.csv",
+        "source_row": 2
+      },
+      "alpha|alpha-main|A-1002": {
+        "occurred_at": "2026-08-31T23:30:00+08:00",
+        "amount_minor": -1850,
+        "currency": "CNY",
+        "kind": "expense",
+        "target": "Coffee, Lab",
+        "category": "餐饮",
+        "source_file": "thick-alpha.csv",
+        "source_row": 3
+      },
+      "alpha|alpha-main|A-1003": {
+        "occurred_at": "2026-09-01T09:00:00+08:00",
+        "amount_minor": 800000,
+        "currency": "CNY",
+        "kind": "income",
+        "target": "Acme Corp",
+        "category": "收入",
+        "source_file": "thick-alpha.csv",
+        "source_row": 4
+      },
+      "alpha|alpha-main|A-1004": {
+        "occurred_at": "2026-09-02T12:15:00+08:00",
+        "amount_minor": -6800,
+        "currency": "CNY",
+        "kind": "expense",
+        "target": "City Bistro",
+        "category": "餐饮",
+        "source_file": "thick-alpha.csv",
+        "source_row": 5
+      },
+      "alpha|alpha-main|A-1005": {
+        "occurred_at": "2026-09-06T18:00:00+08:00",
+        "amount_minor": 1850,
+        "currency": "CNY",
+        "kind": "refund",
+        "target": "Coffee, Lab",
+        "category": "餐饮",
+        "source_file": "thick-alpha.csv",
+        "source_row": 6
+      },
+      "alpha|alpha-main|A-1006": {
+        "occurred_at": "2026-09-07T00:15:00+08:00",
+        "amount_minor": -2500,
+        "currency": "CNY",
+        "kind": "expense",
+        "target": "Night Store",
+        "category": "日用",
+        "source_file": "thick-alpha.csv",
+        "source_row": 7
+      },
+      "alpha|alpha-main|A-1007": {
+        "occurred_at": "2026-09-30T23:50:00+08:00",
+        "amount_minor": -9900,
+        "currency": "CNY",
+        "kind": "expense",
+        "target": "Month End Shop",
+        "category": "日用",
+        "source_file": "thick-alpha.csv",
+        "source_row": 8
+      },
+      "alpha|alpha-main|A-1008": {
+        "occurred_at": "2026-10-01T00:10:00+08:00",
+        "amount_minor": -1200,
+        "currency": "CNY",
+        "kind": "expense",
+        "target": "October Shop",
+        "category": "日用",
+        "source_file": "thick-alpha.csv",
+        "source_row": 9
+      },
+      "alpha|alpha-main|A-1010": {
+        "occurred_at": "2026-08-31T23:30:00+08:00",
+        "amount_minor": -1850,
+        "currency": "CNY",
+        "kind": "expense",
+        "target": "Coffee, Lab",
+        "category": "餐饮",
+        "source_file": "thick-alpha.csv",
+        "source_row": 11
+      },
+      "beta|beta-card|B-2001": {
+        "occurred_at": "2026-09-03T20:00:00+08:00",
+        "amount_minor": -10520,
+        "currency": "CNY",
+        "kind": "expense",
+        "target": "Metro Market",
+        "category": "日用",
+        "source_file": "thick-beta.csv",
+        "source_row": 2
+      },
+      "beta|beta-card|B-2002": {
+        "occurred_at": "2026-09-04T08:00:00+08:00",
+        "amount_minor": -1850,
+        "currency": "CNY",
+        "kind": "expense",
+        "target": "Coffee Lab",
+        "category": "餐饮",
+        "source_file": "thick-beta.csv",
+        "source_row": 3
+      },
+      "beta|beta-card|B-2003": {
+        "occurred_at": "2026-09-05T10:00:00+08:00",
+        "amount_minor": 3000,
+        "currency": "CNY",
+        "kind": "refund",
+        "target": "Coffee Lab",
+        "category": "餐饮",
+        "source_file": "thick-beta.csv",
+        "source_row": 4
+      },
+      "beta|beta-card|B-2004": {
+        "occurred_at": "2026-09-01T00:30:00+08:00",
+        "amount_minor": 100000,
+        "currency": "CNY",
+        "kind": "income",
+        "target": "Savings",
+        "category": "转账",
+        "source_file": "thick-beta.csv",
+        "source_row": 5
+      },
+      "beta|beta-card|B-2005": {
+        "occurred_at": "2026-09-02T15:45:00+08:00",
+        "amount_minor": -4500,
+        "currency": "CNY",
+        "kind": "expense",
+        "target": "Bookshop",
+        "category": "未分类",
+        "source_file": "thick-beta.csv",
+        "source_row": 6
+      }
+    }
+  },
+  "thick_m2": {
+    "reports": {
+      "week_category": {
+        "period_start": "2026-08-31",
+        "period_end": "2026-09-07",
+        "rows": {
+          "日用": {"transaction_count": 2, "cashflow_minor": -14720, "spend_minor": 14720},
+          "餐饮": {"transaction_count": 6, "cashflow_minor": -7500, "spend_minor": 7500},
+          "收入": {"transaction_count": 1, "cashflow_minor": 800000, "spend_minor": 0},
+          "转账": {"transaction_count": 1, "cashflow_minor": 100000, "spend_minor": 0},
+          "未分类": {"transaction_count": 1, "cashflow_minor": -4500, "spend_minor": 4500}
+        }
+      },
+      "week_target": {
+        "period_start": "2026-08-31",
+        "period_end": "2026-09-07",
+        "rows": {
+          "Metro Market": {"transaction_count": 2, "cashflow_minor": -14720, "spend_minor": 14720},
+          "Coffee, Lab": {"transaction_count": 3, "cashflow_minor": -1850, "spend_minor": 1850},
+          "Acme Corp": {"transaction_count": 1, "cashflow_minor": 800000, "spend_minor": 0},
+          "City Bistro": {"transaction_count": 1, "cashflow_minor": -6800, "spend_minor": 6800},
+          "Coffee Lab": {"transaction_count": 2, "cashflow_minor": 1150, "spend_minor": -1150},
+          "Savings": {"transaction_count": 1, "cashflow_minor": 100000, "spend_minor": 0},
+          "Bookshop": {"transaction_count": 1, "cashflow_minor": -4500, "spend_minor": 4500}
+        }
+      },
+      "month_category": {
+        "period_start": "2026-09-01",
+        "period_end": "2026-10-01",
+        "rows": {
+          "日用": {"transaction_count": 3, "cashflow_minor": -22920, "spend_minor": 22920},
+          "餐饮": {"transaction_count": 4, "cashflow_minor": -3800, "spend_minor": 3800},
+          "收入": {"transaction_count": 1, "cashflow_minor": 800000, "spend_minor": 0},
+          "转账": {"transaction_count": 1, "cashflow_minor": 100000, "spend_minor": 0},
+          "未分类": {"transaction_count": 1, "cashflow_minor": -4500, "spend_minor": 4500}
+        }
+      },
+      "month_target": {
+        "period_start": "2026-09-01",
+        "period_end": "2026-10-01",
+        "rows": {
+          "Acme Corp": {"transaction_count": 1, "cashflow_minor": 800000, "spend_minor": 0},
+          "City Bistro": {"transaction_count": 1, "cashflow_minor": -6800, "spend_minor": 6800},
+          "Coffee, Lab": {"transaction_count": 1, "cashflow_minor": 1850, "spend_minor": -1850},
+          "Night Store": {"transaction_count": 1, "cashflow_minor": -2500, "spend_minor": 2500},
+          "Month End Shop": {"transaction_count": 1, "cashflow_minor": -9900, "spend_minor": 9900},
+          "Metro Market": {"transaction_count": 1, "cashflow_minor": -10520, "spend_minor": 10520},
+          "Coffee Lab": {"transaction_count": 2, "cashflow_minor": 1150, "spend_minor": -1150},
+          "Savings": {"transaction_count": 1, "cashflow_minor": 100000, "spend_minor": 0},
+          "Bookshop": {"transaction_count": 1, "cashflow_minor": -4500, "spend_minor": 4500}
+        }
+      }
+    }
+  }
+}

@@ -1,0 +1,62 @@
+{
+  "schema_version": 1,
+  "package_id": "plan-loop-v1",
+  "status": "prepared",
+  "skill_under_test": "../../SKILL.md",
+  "baseline": "../../../yes-subagents-workspace/iteration-11/skill-snapshot",
+  "purpose": "测 plan <-> strict 循环的复杂性膨胀：R1 strict（新契约 vs 旧契约 baseline）→ lead 按 findings 修正 → R2 strict 复审。观察 FATAL 判级、修正增量与收敛。",
+  "fixture": {
+    "plan": "fixture/plan-v1.md",
+    "anchor": "fixture/ANCHOR.md",
+    "deliberate_gaps": [
+      "冲突判定的时间戳精度与时区、相同时间戳的处理",
+      "状态文件 schema",
+      "重试幂等与部分失败回滚",
+      "多进程并发锁",
+      "测试矩阵与故障注入"
+    ]
+  },
+  "phases": [
+    {
+      "id": "r1-strict",
+      "role": "critic-strict",
+      "round": 1,
+      "configs": ["with_skill", "old_skill"],
+      "prompt": "cases/r1-strict/PROMPT.md",
+      "required_outputs": ["strict-review.md", "session.md"],
+      "observations": [
+        "FATAL 是否绑定判级锚",
+        "留白是否被判 FATAL",
+        "形式完备性缺口是否落 MINOR/UNVERIFIED"
+      ]
+    },
+    {
+      "id": "lead-revision",
+      "role": "orchestrator",
+      "configs": ["with_skill"],
+      "depends_on": ["r1-strict/with_skill"],
+      "prompt": "cases/lead-revision/PROMPT.md",
+      "required_outputs": ["disposition.md", "revision.md", "plan-v2.md", "session.md"],
+      "observations": [
+        "是否先分诊后修正",
+        "只修真缺陷 FATAL 还是全量修复",
+        "新增机制是否声明服务标准",
+        "修正后计划行数与机制数增量"
+      ]
+    },
+    {
+      "id": "r2-strict",
+      "role": "critic-strict",
+      "round": 2,
+      "configs": ["with_skill"],
+      "depends_on": ["lead-revision/with_skill"],
+      "prompt": "cases/r2-strict/PROMPT.md",
+      "required_outputs": ["strict-review.md", "session.md"],
+      "observations": [
+        "FATAL 是否较 R1 减少",
+        "修正是否引入新的形式完备性要求",
+        "是否收敛（PASS 或 FATAL 显著下降）"
+      ]
+    }
+  ]
+}

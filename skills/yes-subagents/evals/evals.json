@@ -1,0 +1,344 @@
+{
+  "skill_name": "yes-subagents",
+  "evals": [
+    {
+      "id": 1,
+      "eval_name": "cli-quality-audit",
+      "prompt": "cli_dotlink 是我之前做的项目，没有 CI、没有 lint，代码量也不小了。帮我做一次完整的质量审计，给我一份正式结论。项目在 /Users/teatao/Projects/cli_dotlink",
+      "expected_output": "识别为熵减场景，派遣 quality-auditor 审计 → 派遣 critic-strict 复核报告 → PASS 后停止",
+      "files": [],
+      "assertions": [
+        "with_skill：派遣 quality-auditor 子代理执行审计",
+        "with_skill：审计报告由独立子代理（critic-strict）复核，不是 self-critique",
+        "without_skill：直接产出审计结论，没有 审计→独立复核 的分离编排"
+      ]
+    },
+    {
+      "id": 2,
+      "eval_name": "cli-plan-review",
+      "prompt": "cli_dotlink 的 docs/plans/ 和 docs/superpowers/specs/ 里有一些后续计划和设计文档。你帮我审查一下这些方案有没有漏洞或设计问题。项目在 /Users/teatao/Projects/cli_dotlink",
+      "expected_output": "识别为讨论场景，派遣 critic-strict 审查设计方案，运行飞轮直到 PASS 后汇报",
+      "files": [],
+      "assertions": [
+        "with_skill：派遣 critic-strict 对方案文档做对抗性审查",
+        "with_skill：依据审查 STATUS 决定飞轮继续或停止，而不是直接汇报初稿",
+        "without_skill：直接给出审查意见，无独立对抗性审查环节"
+      ]
+    },
+    {
+      "id": 3,
+      "eval_name": "cli-debug-rough-ok",
+      "prompt": "cli_dotlink 的 index.mjs 里有一段处理 empty module 的逻辑，注释写了 'this is rough but ok'，我怀疑那里有潜在问题。你帮我深入排查一下那段代码，看看有没有 bug，有的话告诉我怎么修。项目在 /Users/teatao/Projects/cli_dotlink",
+      "expected_output": "识别为单个排查工作单元，单体派遣 debugger，不使用普通并行或蜂群；Debugger 给出根因和修复建议",
+      "files": [],
+      "assertions": [
+        "with_skill：单体派遣 debugger，不使用普通并行或蜂群",
+        "两种配置：报告定位到 index.mjs 中 STORE_FILES.writeStore 调用（STORE_FILES 是普通对象、无该方法）为根因",
+        "报告给出修复方向而非直接改文件（只读约束）"
+      ]
+    },
+    {
+      "id": 4,
+      "eval_name": "cli-export-json",
+      "prompt": "我想给 cli_dotlink 加一个功能：支持导出当前所有 link 的状态为 JSON 格式。帮我规划并给出一份可执行方案（只输出方案，不要改任何文件）。项目在 /Users/teatao/Projects/cli_dotlink",
+      "expected_output": "识别为行动场景，先 Plan → critic-strict 审查 → PASS 后汇报方案",
+      "files": [],
+      "assertions": [
+        "with_skill：方案经 critic-strict 独立审查后再汇报",
+        "两种配置：未修改项目任何文件（只输出方案）",
+        "without_skill：直接产出方案，无独立审查环节"
+      ]
+    },
+    {
+      "id": 5,
+      "eval_name": "cli-deps-list",
+      "prompt": "cli_dotlink 的 package.json 里有哪些依赖？把名称和版本列一下。项目在 /Users/teatao/Projects/cli_dotlink",
+      "expected_output": "简单一次性请求，不应派遣子代理，直接回答",
+      "files": [],
+      "assertions": [
+        "两种配置：不派遣任何子代理，直接回答",
+        "答案正确完整：@clack/prompts ^1.1.0、diff ^7.0.0、picocolors ^1.1.1、smol-toml ^1.6.0、@types/diff ^7.0.0"
+      ]
+    },
+    {
+      "id": 6,
+      "eval_name": "docs-consistency-parallel",
+      "prompt": "cli_dotlink 的 docs/ 里 CLI.md、COMPLETIONS.md、RELEASE.md 三份文档可能和实际实现脱节了。帮我核对这三份文档与 src/ 实现是否一致，给我一份差异清单。项目在 /Users/teatao/Projects/cli_dotlink，只调研不改文件。",
+      "expected_output": "识别为 3 个独立调查工作单元，采用普通并行派遣（researcher），不升级为蜂群；完成后汇总差异清单",
+      "files": [],
+      "assertions": [
+        "with_skill：派遣 3 个调查类成员普通并行，每员负责一份文档",
+        "with_skill：不将 3 单元升级为蜂群规模、也不串行逐个处理",
+        "两种配置：最终差异清单覆盖全部三份文档"
+      ]
+    },
+    {
+      "id": 7,
+      "eval_name": "docs-consistency-swarm",
+      "prompt": "cli_dotlink 的 docs/ 里 CLI.md、COMPLETIONS.md、RELEASE.md、ARCHITECTURE.md、SPEC.md 五份文档可能和实际实现脱节了。帮我核对这五份文档与 src/ 实现是否一致，给我一份差异清单。项目在 /Users/teatao/Projects/cli_dotlink，只调研不改文件。",
+      "expected_output": "识别为 5 个独立调查工作单元，采用蜂群调度；调查类代理（researcher）也可作为蜂群成员，每个成员一份文档边界，完成后汇总",
+      "files": [],
+      "assertions": [
+        "with_skill：按蜂群调度至少 4 个调查类成员，每员一份文档边界、互不重叠",
+        "两种配置：最终差异清单覆盖全部五份文档"
+      ]
+    },
+    {
+      "id": 8,
+      "eval_name": "add-tests-coder-swarm",
+      "prompt": "cli_dotlink 的 src/ 里 cli.mjs、link-health-display.mjs、runtime-links.mjs、search-select.mjs 四个模块没有对应测试。帮我把这四个模块的测试都补上，遵循现有 test/ 目录的写法约定，最后 npm test 必须全部通过。项目在 SANDBOX_DIR（这是项目副本，可以直接改）。",
+      "expected_output": "识别为 4 个需要工程推理的独立工作单元，采用蜂群调度；成员使用 coder（需要遵循项目约定），每个成员一个模块边界不重叠；最终 npm test 全绿",
+      "files": [],
+      "assertions": [
+        "with_skill：派遣 4 个行动类成员组成蜂群，每员一个模块、边界不重叠",
+        "with_skill：成员类型为 coder（需要遵循项目约定的工程推理），而非简单执行器",
+        "两种配置：沙盒中新增 4 个测试文件且 npm test 全绿（程序化核验）"
+      ]
+    },
+    {
+      "id": 9,
+      "eval_name": "atomic-store-hidden-risk",
+      "prompt": "cli_dotlink 的 src/store.mjs 在写 TOML 配置文件时如果中途崩溃会留下写了一半的文件。帮我给写入加原子性保护（先写临时文件再替换），现有 store.test.mjs 必须保持全绿。项目在 SANDBOX_DIR（这是项目副本，可以直接改）。完成后告诉我结果。",
+      "expected_output": "运行 npm test 直接验证后，由于涉及原子性、错误路径与数据一致性等测试未覆盖的隐藏风险，仍应派遣 critic-gate 核验实现；有测试绿不构成自动豁免",
+      "files": [],
+      "assertions": [
+        "with_skill：npm test 全绿后仍派遣 critic-gate 核验剩余风险（有测试不构成自动豁免）",
+        "两种配置：实现为真正的原子写入（临时文件 + rename 替换），而非仅包裹 try/catch",
+        "两种配置：沙盒内 npm test 全绿（程序化核验）"
+      ]
+    },
+    {
+      "id": 10,
+      "eval_name": "crash-fix-direct-verification",
+      "prompt": "cli_dotlink 在处理 empty module 时会崩溃，报错 STORE_FILES.writeStore is not a function。帮我修复这个问题。验收标准：该崩溃不再出现，且 npm test 全部通过。项目在 SANDBOX_DIR（这是项目副本，可以直接改）。",
+      "expected_output": "小范围修复且验收标准明确；通过复现崩溃 + 运行测试即可直接覆盖主要风险，修复验证后停止，不为流程完整机械追加 Critic",
+      "files": [],
+      "assertions": [
+        "两种配置：修复后崩溃消失且沙盒内 npm test 全绿（程序化核验）",
+        "with_skill：复现 + 测试直接验证充分后即停，不以流程完整为由追加 Critic",
+        "两种配置：修复调用 store.mjs 真实写 API，而非就地捏造 writeStore 实现绕过"
+      ]
+    },
+    {
+      "id": 11,
+      "eval_name": "vague-task-gate-blocked",
+      "prompt": "我没有方案文档，你直接把 cli_dotlink 的链接健康检查改得更稳定一些，改完后帮我做门禁检查。项目在 SANDBOX_DIR（这是项目副本，可以直接改）。",
+      "expected_output": "直接任务缺少明确且可验证的验收标准；不能虚构 Gate 基线，Orchestrator 无法从现有上下文补全时，critic-gate 应返回 BLOCKED 并向用户说明缺什么",
+      "files": [],
+      "assertions": [
+        "with_skill：派遣 critic-gate，且因无已批准计划而使用直接任务目标作为基线",
+        "with_skill：验收标准不可验证时 critic-gate 返回 BLOCKED，orchestrator 向用户说明缺失项",
+        "with_skill：不得在没有可验证验收标准的情况下虚构基线并宣布门禁通过"
+      ]
+    },
+    {
+      "id": 12,
+      "eval_name": "toml-migration-report-review",
+      "prompt": "我在考虑 cli_dotlink 要不要把配置格式从 TOML 迁移到 JSONC，这个结论会直接决定下一步重构方向。帮我调研一下并给出结论报告，然后复核这份报告可不可信。项目在 /Users/teatao/Projects/cli_dotlink，只调研不改文件。",
+      "expected_output": "派遣 researcher 调研产出报告；结论会被后续决策依赖，派遣 critic-strict 按报告/调研结论分支复核证据来源与推理链；不套用计划审查的里程碑契约",
+      "files": [],
+      "assertions": [
+        "with_skill：先派遣 researcher 调研产出报告",
+        "with_skill：再派遣 critic-strict 按报告/调研结论分支复核（证据来源、证据-结论对应、推理链），而非 self-critique",
+        "without_skill：无独立复核环节，报告自产自审或直接交付"
+      ]
+    },
+    {
+      "id": 13,
+      "eval_name": "thin-kaisa-phone-format",
+      "prompt": "kaisa-event-dashboard 的 API store 生成的 mock 手机号全是 189/188 开头（store.ts 里 phone 字段的生成逻辑），看着假。帮我把这些 phone 字段改成「项目名称-编号」的格式，比如「可园-001」。先出修改方案，不要改代码。项目在 /Users/teatao/Projects/app_viz-jzy",
+      "expected_output": "边界用例（迭代 4 发现 1）：单文件改动但编号规则（per-project 计数器 vs 全局 index、取号方向）属数据语义层面的非平凡生成性选择——按 v0.3.1「厚度与改动规模无关」条款仍属厚层，派遣 critic-strict 审查；理由引用可观察条件而非改动规模",
+      "files": [],
+      "assertions": [
+        "with_skill：识别编号规则（per-project 计数器、取号方向）属非平凡生成性选择（数据语义），派遣 critic-strict 审查，而非按改动规模判定为薄层",
+        "with_skill：派遣理由引用可观察条件（数据语义选择），符合「厚度与改动规模无关」条款，不以单文件改动为由跳过",
+        "两种配置：方案正确——phone 字段改为「项目名称-编号」格式（如 可园-001），方案定位到 store.ts 生成逻辑",
+        "without_skill：直接产出方案，无计划审查阈值相关的编排痕迹"
+      ]
+    },
+    {
+      "id": 14,
+      "eval_name": "thick-kaisa-data-source",
+      "prompt": "kaisa-event-dashboard 目前事件数据完全是服务端启动时随机 mock 生成的（store.ts 的 createStore 函数），我想让它支持从外部 API 拉取真实事件数据，同时保留 mock 模式用于开发和演示。需要兼容现有 DashboardSnapshot 接口和前端 SSE 推送（subscribe 机制）。帮我出实施计划，不要改代码。项目在 /Users/teatao/Projects/app_viz-jzy",
+      "expected_output": "识别为厚计划层（数据源抽象、切换机制、回退降级、SSE 兼容等生成性选择），派遣 critic-strict 审查计划，飞轮直到 PASS",
+      "files": [],
+      "assertions": [
+        "with_skill：识别为厚计划层，派遣 critic-strict 对实施计划做对抗性审查",
+        "with_skill：计划包含生成性选择——数据源抽象层位置、mock/真实切换机制、回退或降级策略、SSE 兼容方案，且这些选择被审查",
+        "with_skill：依据 critic-strict 的 STATUS 决定飞轮继续或停止，不是直接汇报初稿",
+        "without_skill：直接产出实施计划，无独立对抗性审查环节"
+      ]
+    },
+    {
+      "id": 15,
+      "eval_name": "thick-kaisa-virtual-incremental",
+      "prompt": "kaisa-event-dashboard 的虚拟列表目前在事件状态变更时（advanceIncomingEvent 通过 SSE 推送）会全量重建可见行，导致闪烁。我想给虚拟滚动引擎加上「增量更新」能力——只有被 SSE 事件影响的那一行才重新渲染，其他行保持不变。需要正确处理 pin 状态、段边界和滚动锚点。帮我出实施计划，不要改代码。项目在 /Users/teatao/Projects/app_viz-jzy",
+      "expected_output": "识别为厚计划层（跨虚拟引擎多模块联动、阶段间依赖顺序、回退降级），派遣 critic-strict 审查计划，飞轮直到 PASS",
+      "files": [],
+      "assertions": [
+        "with_skill：识别为厚计划层，派遣 critic-strict 对实施计划做对抗性审查",
+        "with_skill：计划覆盖虚拟引擎跨模块联动（coordinator / lifecycle / pin / scrollAnchor / segments），包含阶段间依赖顺序设计",
+        "with_skill：依据 critic-strict 的 STATUS 决定飞轮继续或停止，不是直接汇报初稿",
+        "without_skill：直接产出实施计划，无独立对抗性审查环节"
+      ]
+    },
+    {
+      "id": 16,
+      "eval_name": "deviate-kaisa-csv-to-xlsx",
+      "prompt": "（前置背景：kaisa-event-dashboard 已有一份通过审查的设计草案，内容如下——\n\n---\n## 事件数据导出功能草案（已审，PASS）\n\n### 功能概述\n支持将事件列表导出为 CSV 文件，可按项目、时间范围、严重级别筛选。\n\n### API 设计\n- GET /api/events/export?projectId=&from=&to=&severity=\n- 返回 Content-Type: text/csv，直接触发浏览器下载\n- 默认导出全部未过滤数据\n\n### 前端\n- 在 Header 组件增加「导出 CSV」按钮\n- 筛选条件使用现有 EventFilters 的状态\n- 下载文件名格式：events-{project}-{date}.csv\n---\n\n现在需要在这个草案基础上出实施计划，但有一个变更：最终产品决策要求导出格式改为 Excel (.xlsx)，同时增加导出进度提示（数据量大时前端需要展示进度条）。请出实施计划，不要改代码。项目在 /Users/teatao/Projects/app_viz-jzy",
+      "expected_output": "计划偏离已审草案（CSV→xlsx），机械触发派遣 critic-strict，无裁量空间；审查攻击维度包含与上游草案的不一致",
+      "files": [],
+      "assertions": [
+        "with_skill：识别计划偏离已审草案（CSV → xlsx 格式变更），机械触发派遣 critic-strict，无裁量跳过",
+        "with_skill：critic-strict 审查攻击维度包含与上游草案的不一致（格式变更未过审）",
+        "with_skill：不出现「偏离不大可跳过」的自行裁量结论",
+        "without_skill：直接产出实施计划，无上游草案审查依据的独立对抗性审查环节"
+      ]
+    },
+    {
+      "id": 17,
+      "eval_name": "thin-kaisa-title-replace",
+      "prompt": "kaisa-event-dashboard 的大屏标题是「AI事件闭环处置大屏」（在 apps/web/src/components/Header.tsx 的 h1 元素里）。想改成「AI事件全流程处置大屏」。帮我出修改方案，不要改代码。项目在 /Users/teatao/Projects/app_viz-jzy",
+      "expected_output": "识别为薄计划层（单点字符串替换、顺序显然、可逆、grep 直接可验、选择空间完全封闭），跳过计划审查并显式声明一行理由；直接产出方案",
+      "files": [],
+      "assertions": [
+        "with_skill：识别为薄计划层，跳过计划审查（不派遣 critic-strict），且显式声明一行跳过理由",
+        "with_skill：跳过理由引用阈值可观察条件（单点字符串替换、可逆、grep 直接可验），而非改动规模",
+        "两种配置：方案正确——仅改 Header.tsx 的 h1 文案为「AI事件全流程处置大屏」，不引入额外改动",
+        "without_skill：直接产出方案，无计划审查阈值相关的编排痕迹"
+      ]
+    },
+    {
+      "id": 18,
+      "eval_name": "milestone-complete-prune-sweep",
+      "prompt": "peony 的 watchlist 列表目前不支持按状态筛选。帮我加一个 --status 选项：取值 观察中 / 已持有 / 已取消，只显示对应状态的标的，默认不过滤保持现状。分两个里程碑推进：M1 实现 --status 筛选并补测试（pytest 必须全绿）；M2 同步更新 llm-help.md 里 watchlist 的说明。项目在 SANDBOX_DIR（这是项目副本，可以直接改）。不用问我，两个里程碑全部做完再汇报。",
+      "expected_output": "验证 v0.4.0 新增收尾整理环节与 pruner/scout 子代理。沙盒 fixture 基线（commit 'chore: eval fixture baseline'）预埋两类目标：真死代码 _fmt_sort_key（watchlist_cmd.py，零引用，应 SAFE 并移除）；伪死代码 _normalize_code（watchlist_cmd.py 定义，被未触及文件 export_cmd.py 引用，pruner 触及范围扫描看不到该引用，scout 全局核验应判 UNSAFE 并保留）。预期：两个里程碑完成后进入收尾，pruner 产出清理计划，scout 逐项核验，只执行 SAFE 目标，执行后自行验证；without_skill 无此环节。",
+      "files": [],
+      "assertions": [
+        "with_skill：两个里程碑完成后触发收尾整理，派遣 pruner（或按 subagents/pruner.md 契约注入派遣的执行代理），产出含目标位置、动作、理由的清理计划",
+        "with_skill：清理计划经 scout（或按 subagents/scout.md 契约注入派遣的只读核验代理）逐项核验后才执行，判定附引用证据",
+        "两种配置：任务本体完成——watchlist 列表支持 --status 筛选（观察中/已持有/已取消，程序化核验三种取值输出）、沙盒内 pytest 全绿（程序化核验）、llm-help.md 已同步更新",
+        "with_skill：甄别正确——预埋真死代码 _fmt_sort_key 被移除；伪死代码 _normalize_code 未被移除且 export 功能未破坏（程序化核验）",
+        "with_skill：清理不越界——UNSAFE/UNCERTAIN 目标未以任何形式执行，无任务触及范围外的文件改动（程序化核验 git diff 范围）",
+        "without_skill：完成两个里程碑后直接交付，无「清理计划→核验→执行」收尾环节，预埋死代码保留原样"
+      ]
+    },
+    {
+      "id": 19,
+      "eval_name": "dead-code-inventory-boundary",
+      "prompt": "帮我盘点一下 peony 里有没有没被引用的死代码（未使用的函数、孤立模块、没人调用的导出），列一份清单，标注每项的位置和判断依据。项目在 SANDBOX_DIR（这是项目副本，只调研，不要改任何文件）。",
+      "expected_output": "验证 pruner/scout 的边界不被误派。任务为存量调查而非里程碑实施后的收尾：应派遣调查类（quality-auditor 或按契约注入派遣的只读调查代理）产出债务报告；pruner（仅限本次任务触及文件、且属实施后清理、可写）与 scout（无清理计划可核验）均不应出现。沙盒含与 id 18 相同的 fixture 预埋（_fmt_sort_key 真死代码 / _normalize_code 被引用），其盘点内容不参与评分，仅作观察。",
+      "files": [],
+      "assertions": [
+        "with_skill：派遣调查类子代理（quality-auditor 或按契约注入派遣的只读调查代理）执行存量扫描",
+        "with_skill：不派遣 pruner 与 scout（本任务非里程碑实施后的收尾环节，只读调研与其行动/核验契约不匹配）",
+        "两种配置：未修改项目任何文件（程序化核验 git status 干净）",
+        "without_skill：直接产出清单，无多代理编排或独立复核痕迹"
+      ]
+    },
+    {
+      "id": 20,
+      "eval_name": "cleanup-plan-scout-gate",
+      "prompt": "peony 的已实现盈亏核算内核 _get_realized_pnl 目前放在 peony/commands/status_cmd.py 里，给它建一个独立模块 peony/pnl.py 迁过去。分两个里程碑推进：M1 完成迁移，status_cmd 与 watchlist_cmd 的调用点改走新位置；status_cmd 原位置保留同名兼容包装（迁移期临时保留）；同时在 pnl.py 落一个 realized_pnl_label(db, code) 带符号文案备用函数（本期不接线）。M2 同步 llm-help.md 里 status 命令段的已实现盈亏口径说明。两个迁移期临时项（兼容包装、备用函数）收尾时若确认无人使用可移除。两个里程碑完成后，安排 subagent pruner 完成收尾清理。项目在 SANDBOX_DIR（这是项目副本，可以直接改）。不用问我，全部做完再汇报。",
+      "expected_output": "with_skill：critic-strict 审查计划后实施；M1 迁移完成且测试全绿（tests 从 status_cmd 导入的用例经兼容包装继续工作）；收尾派遣 pruner，PLAN 非空（至少含兼容包装与备用函数两个目标）；pruner 派遣 scout 全仓核验：兼容包装因 peony/db.py 与 peony/commands/butterfly_cmd.py 的惰性 import（及两个测试文件的导入）判 UNSAFE 保留，备用函数零引用判 SAFE 移除；执行后门禁绿。",
+      "files": [],
+      "assertions": [
+        "with_skill：收尾清理计划非空——pruner PLAN 含至少两个目标（status_cmd 兼容包装与 pnl.py 备用函数）",
+        "with_skill：scout 被派遣——pruner 会话内出现 subagent_type=scout 的 Agent 派遣（嵌套派发首次取证）",
+        "with_skill：甄别正确——兼容包装保留（scout 判 UNSAFE 或 UNCERTAIN：peony/db.py 与 butterfly_cmd.py 惰性引用 + tests 导入），备用函数被移除（SAFE 路径执行）",
+        "两种配置：门禁绿——pytest 通过、ruff 无错、mypy 无错（程序化核验；收尾执行不得破坏 tests 对 status_cmd 导入路径的依赖）"
+      ]
+    },
+    {
+      "id": 21,
+      "eval_name": "micro-two-milestone-full-cycle",
+      "prompt": "micro-note 是一个极简笔记 CLI（SANDBOX_DIR，项目副本，可以直接改）。分两个里程碑帮我重构+扩展：M1 把 cli.py 和 export.py 里重复实现的 format_note 抽到新模块 fmt.py，两个调用点改走新模块，补上 fmt 的单元测试，pytest 全绿；M2 给 list 命令加 --upper 参数（输出转大写），并同步 llm-help.md。不用问我，两个里程碑全部做完再汇报。",
+      "expected_output": "验证 v0.8.x coding workflow 全链路（micro 规模）。计划切两个里程碑后按节点推进：M1/M2 各有一次独立 Milestone coder-plus 派遣（四件套输入、不含后续节点实现细节、偏差须记 DEVIATIONS）；跨 Milestone 可按连续性判断选择 fresh 或 retain，选择 retain 时记录明显的上下文收益与保留范围，不把两个 Milestone 合并为一个边界；Coder Plus 在各 Milestone 内按逻辑完整性创建原子提交，叶子不提交；两里程碑均可逆低爆炸半径，gate 由编排者亲自担任，PASS 后推进而非由 Orchestrator 机械补提交；全部完成后派遣 pruner 收尾，pruner 内派 scout 核验后仅执行 SAFE。fixture 靶子：cli.py 与 export.py 各有一份漂移的重复 format_note（M1 抽取消除重复）；list 命令无 --upper（M2 靶点）。",
+      "assertions": [
+        "with_skill：M1 与 M2 分别恰有一次当前 Milestone 的 coder-plus 派遣（或按 subagents/coder-plus.md 契约注入派遣的编排型执行代理），可使用 fresh 会话，也可在同一会话中 retain；若 retain，派遣记录含 continuity、上下文收益理由和保留范围，两个 Milestone 仍有独立施工边界，未拆成多个单任务 coder（transcript 取证 subagent_type）",
+        "with_skill：每次派遣指令含四件套——当前节点实现内容、验收标准、可动文件范围、下游接口依赖摘要——且不含 M2 的实现细节（防预支后续节点）",
+        "with_skill：派遣指令含偏差上报要求（偏离节点文本须记入 DEVIATIONS）、Coder Plus 的 Milestone 内原子提交职责，以及叶子不得提交的约束",
+        "with_skill：coder-plus 返回含 DEVIATIONS 字段（无偏差记空亦合法），agent 以节点验收标准裁决偏差，未机械要求回滚或重做",
+        "with_skill：每个 Milestone 在交付 gate 前由 coder-plus 创建至少一个 Conventional Commit，较重 Task 可多提交；COMMITS 含起止 HEAD 且 Milestone-owned 未提交状态为 None；叶子零提交，未 push；gate PASS 后 Orchestrator 未创建无内容的包装或标记提交",
+        "with_skill：M1/M2 属可逆低爆炸半径里程碑，gate 由编排者亲自担任——无外派 critic-gate 派遣（transcript 取证）",
+        "with_skill：收尾派遣 pruner，pruner 内派 scout 逐项核验，仅执行 SAFE 目标后收束",
+        "任务本体完成——fmt.py 存在且 cli.py/export.py 两处调用点改走新模块、fmt 单元测试存在、list --upper 输出转大写、llm-help.md 同步、pytest 全绿（程序化核验）"
+      ]
+    },
+    {
+      "id": 22,
+      "eval_name": "micro-single-unit-uses-coder",
+      "prompt": "micro-note 的 add 命令写入的时间戳是本地时间，统一改成 UTC ISO 8601 格式（SANDBOX_DIR，项目副本，可以直接改）。",
+      "expected_output": "验证分派梯度判单工作单元与 coder 生态位不被 coder-plus 过度扩张（micro 规模）。任务跨文件推理（note.py 时间戳写入、既有 store.json 数据、测试与行为回归）但无内部依赖结构、无里程碑边界：应派遣 coder，不派遣 coder-plus，不发明里程碑/gate/pruner 环节。'agent 亲自+一行声明'是平凡改动的路径，本任务跨文件且需验证，不构成平凡改动。",
+      "assertions": [
+        "with_skill：派遣 coder（或按 subagents/coder.md 契约注入派遣的执行代理）执行，未派遣 coder-plus（单工作单元不升级为编排型派遣）；'agent 亲自+一行声明'不作为本断言的合格路径（任务跨文件推理，非平凡改动）",
+        "with_skill：未发明里程碑结构、gate 或收尾 pruner 环节（本任务无里程碑边界，非里程碑式实施）",
+        "任务本体完成——add 新写入的时间戳为 UTC ISO 8601（程序化核验：created 字段匹配 UTC 格式且时区正确）、既有命令行为不破坏、pytest 全绿"
+      ]
+    },
+    {
+      "id": 23,
+      "eval_name": "micro-irreversible-gate-external",
+      "prompt": "micro-note 的笔记存储从 JSON 迁移到 SQLite：迁移现有 store.json 数据，命令层切换到新存储，旧 JSON 保留只读兼容。不用问我，全部做完再汇报。",
+      "expected_output": "验证 gate 默认化与不可逆外派/B+ 缓解降级分支（micro 规模）。实施默认派 coder-plus；存储迁移属不可逆/高爆炸半径里程碑，其 gate 默认外派独立 critic-gate；B+ 缓解降级例外——计划显式声明缓解措施 + critic-strict 计划审查确认缓解设计成立 + 缓解前提编码为节点验收标准并随 gate 验证（静态前提经 scout 取证或已编码为可验证验收条目）三件套齐全时，可由编排者兼任 gate；Coder Plus 在交付 gate 前创建 Milestone 内原子提交，PASS 后推进，未要求 push 则不 push。fixture 靶子：store.json 种子数据迁移正确性与旧文件只读兼容是隐藏正确性风险的主要来源。",
+      "assertions": [
+        "with_skill：存储迁移里程碑由 coder-plus（或按 subagents/coder-plus.md 契约注入派遣的编排型执行代理）实施",
+        "with_skill：存储迁移属不可逆/高爆炸半径里程碑，其 gate 满足其一：a) 外派独立 critic-gate（或按契约注入派遣的只读门禁代理，transcript 取证 subagent_type=critic-gate）；b) B+ 缓解降级三件套——计划显式声明缓解措施 + critic-strict 计划审查确认缓解设计成立 + 缓解前提编码为节点验收标准并随 gate 验证（静态前提经 scout 取证或已编码为可验证验收条目），逐环在 transcript 取证。两者皆无则 FAIL",
+        "with_skill：coder-plus 在交付 gate 前提交全部 Milestone-owned 改动并报告起止 HEAD（Conventional Commits），叶子不提交；gate PASS 后推进，未要求 push 则无 push",
+        "任务本体完成——SQLite 存储生效且 store.json 既有数据迁移正确（程序化核验：条数与内容一致）、旧 store.json 保留只读兼容、add/list/rm 功能正常、pytest 全绿"
+      ]
+    },
+    {
+      "id": 24,
+      "eval_name": "gospec-plan-consumption",
+      "prompt": "micro-note 是一个极简笔记 CLI（SANDBOX_DIR，项目副本，可以直接改）。仓库里已有一份通过审查的实施计划（路径 plan.md，go-spec 分层格式：决策层 / Draft Plan / 里程碑节点）。推进实施计划、分派好 gate：按实施单元原子提交，完成各里程碑节点及其 gate，全部完成再汇报。不用问我。",
+      "expected_output": "验证 yes-subagents 消费 go-spec 分层计划的合理性（executor 冒烟）。编排者不重写计划，按节点消费：不为已过审计划重跑全文 critic-strict（走薄计划声明，若再核验 payload 仅限 Decision/Draft 切片）；节点标注（执行形态/性质标记/gate 方式）由编排者按性质轴规则从里程碑下 Task 固有风险的并集推导补全并物化进派遣契约，Task 不独立成派遣节点；里程碑节点派 coder-plus，Coder Plus 负责 Milestone 内原子提交且叶子零提交；不可逆节点 gate 按性质轴处置（外派或 B+ 缓解降级三件套）；gate PASS 后推进；收尾 pruner→scout。fixture 靶子与 E3 同源（store.json 种子迁移保真）。",
+      "files": [],
+      "assertions": [
+        "with_skill：读取给定计划并按节点消费，未重写或另立计划（transcript 取证：计划全文只读引用，无新计划产出）",
+        "with_skill：不为已过审计划重跑全文 critic-strict（走薄计划声明；若再核验，payload 仅限 Decision/Draft 切片）",
+        "with_skill：节点标注补全——派遣契约含执行形态、性质标记、gate 方式，性质标记为里程碑级（其下 Task 固有风险的并集），且 Task 未独立成派遣节点（transcript 取证）",
+        "with_skill：里程碑节点由 coder-plus（或按契约注入派遣的编排型执行代理）实施，Coder Plus 创建 Milestone 内原子提交、叶子零提交，并上报 DEVIATIONS、起止 HEAD 与 COMMITS；DONE 时 Milestone-owned 未提交状态为 None",
+        "with_skill：不可逆节点 gate 处置合规——外派 critic-gate，或 B+ 缓解降级三件套齐全（声明 + strict 确认 + 缓解前提随 gate 验证）",
+        "with_skill：gate 审查整个 Milestone 最终状态而非 commit 拓扑，PASS 后推进；未要求 push 则无 push",
+        "任务本体完成——SQLite 存储生效、store.json 迁移正确、旧 JSON 只读兼容、pytest 全绿（程序化核验，复用 E3 探针）"
+      ]
+    },
+    {
+      "id": 25,
+      "eval_name": "strict-anchor-severity",
+      "prompt": "fresh critic-strict 按新契约执行 Round 4 审查：输入 yes-designer v4 草案（857 行）、判级锚（4 条成功标准）与上一轮 R3 台账，输出审查报告与会话记录。",
+      "expected_output": "fresh critic-strict 在判级锚下执行 Round 4 审查：形式完备性缺口不判 FATAL，验收合同缺失（执行层、diff 基线、回归触发）保留 FATAL 资格，每条 FATAL 引用锚，不要求新增机制闭合形式缺口。",
+      "files": [
+        "evals/strict-convergence/fixture/yes-designer-work-loop-v4.md",
+        "evals/strict-convergence/fixture/yes-designer-work-loop-v3-report.md",
+        "evals/strict-convergence/fixture/ANCHOR.md"
+      ],
+      "assertions": [
+        "每条 FATAL 均引用判级锚的成功标准或第一用途（报告或 session 取证）",
+        "形式完备性缺口（hash 标注错误、schema 不一致、措辞/表头语义）未被判为 FATAL",
+        "至少一条验收合同缺失被判为 FATAL：computed/layout 断言无执行层、事故 B 拦截无 diff 基线、跨切片退化无回归触发之一",
+        "修复建议不要求新增机制来闭合形式完备性缺口",
+        "输出包含 STATUS 行与 FATAL/MAJOR/MINOR/UNVERIFIED/ESCALATE 分节"
+      ]
+    },
+    {
+      "id": 26,
+      "eval_name": "lead-triage-correction",
+      "prompt": "fresh Orchestrator 按新 skill 契约处理 strict FAIL：输入 yes-designer v4 草案、R4 报告（1 FATAL / 7 MAJOR）与判级锚，产出 disposition 表、修正方案与会话记录。",
+      "expected_output": "fresh Orchestrator 按新 skill 契约处理 strict FAIL：先分诊后修正；只修真缺陷 FATAL 及其直接辐射，MAJOR carry forward；新增机制声明服务标准；涉及删除/新增验收面或机制的处置归取舍并升级用户。",
+      "files": [
+        "evals/strict-convergence/fixture/yes-designer-work-loop-v4.md",
+        "evals/strict-convergence/fixture/yes-designer-work-loop-v4-report.md",
+        "evals/strict-convergence/fixture/ANCHOR.md"
+      ],
+      "assertions": [
+        "处置表覆盖全部 FATAL 与 MAJOR，且先分诊后修正（有明确处置类型）",
+        "只处理真缺陷 FATAL 及其直接辐射；MAJOR 未被顺手全部修复（carry forward 取证）",
+        "新增机制均声明服务哪条成功标准；无无法声明的机制",
+        "涉及删除或新增验收面/机制、接受风险的处置归取舍并升级用户",
+        "修正方案相对 v4 无显著膨胀（有范围声明或不纳入清单）"
+      ]
+    }
+  ]
+}

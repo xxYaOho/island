@@ -1,0 +1,27 @@
+{
+  "transactions": [
+    {
+      "bank": "alpha",
+      "account": "alpha-main",
+      "transaction_id": "A-1001",
+      "occurred_at": "2026-08-31T08:15:00+08:00",
+      "amount_minor": -4200,
+      "currency": "CNY",
+      "kind": "expense",
+      "target": "Metro Market",
+      "category": "日用",
+      "source": {
+        "file": "seed-alpha.csv",
+        "row": 2,
+        "raw": {
+          "交易时间": "2026-08-31T08:15:00+08:00",
+          "交易单号": "A-1001",
+          "交易对象": "Metro Market",
+          "类型": "支出",
+          "金额": "42.00",
+          "分类": "日用"
+        }
+      }
+    }
+  ]
+}

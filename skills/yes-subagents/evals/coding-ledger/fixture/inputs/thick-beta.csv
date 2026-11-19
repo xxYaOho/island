@@ -1,0 +1,7 @@
+posted_at,reference,description,debit,credit,type,category
+2026-09-03T20:00:00+08:00,B-2001,Metro Market,105.20,,Expense,Groceries
+2026-09-04T08:00:00+08:00,B-2002,Coffee Lab,18.50,,Expense,Dining
+2026-09-05T10:00:00+08:00,B-2003,Coffee Lab,,30.00,Refund,Dining
+2026-09-01T00:30:00+08:00,B-2004,Savings,,1000.00,Income,Transfer
+2026-09-02T15:45:00+08:00,B-2005,Bookshop,45.00,,Expense,
+2026-09-03T09:30:00+08:00,B-2006,Invalid Both,10.00,10.00,Expense,Groceries

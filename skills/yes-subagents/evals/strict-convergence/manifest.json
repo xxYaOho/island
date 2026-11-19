@@ -1,0 +1,45 @@
+{
+  "schema_version": 2,
+  "package_id": "strict-convergence-v2",
+  "status": "prepared",
+  "skill_under_test": "../../SKILL.md",
+  "configs": ["with_skill"],
+  "historical_baseline": "../../../yes-subagents-workspace/iteration-11/e1-strict-anchor/old_skill",
+  "purpose": "第二轮：验证契约校准后，fresh agent 在判级锚下既消除形式完备性 FATAL，也保留验收合同缺失的 FATAL 资格，并在分诊中识别取舍。基线复用 iteration-11 的 old_skill 结果，不再重跑。",
+  "cases": [
+    {
+      "id": "e1-strict-anchor",
+      "session": "fresh",
+      "role": "critic-strict",
+      "prompt": "cases/e1-strict-anchor/PROMPT.md",
+      "inputs": [
+        "fixture/yes-designer-work-loop-v4.md",
+        "fixture/yes-designer-work-loop-v3-report.md",
+        "fixture/ANCHOR.md"
+      ],
+      "required_outputs": ["strict-review.md", "session.md"],
+      "observations": [
+        "FATAL 是否绑定判级锚",
+        "形式完备性缺口是否不判 FATAL",
+        "验收合同缺失是否保留 FATAL 资格（本轮校准目标）"
+      ]
+    },
+    {
+      "id": "e2-lead-triage",
+      "session": "fresh",
+      "role": "orchestrator",
+      "prompt": "cases/e2-lead-triage/PROMPT.md",
+      "inputs": [
+        "fixture/yes-designer-work-loop-v4.md",
+        "fixture/yes-designer-work-loop-v4-report.md",
+        "fixture/ANCHOR.md"
+      ],
+      "required_outputs": ["disposition.md", "revision.md", "session.md"],
+      "observations": [
+        "是否先分诊后修正",
+        "MAJOR 是否 carry forward",
+        "涉及删除/新增验收面的处置是否归取舍并升级（本轮校准目标）"
+      ]
+    }
+  ]
+}

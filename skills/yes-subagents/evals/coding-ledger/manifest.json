@@ -1,0 +1,97 @@
+{
+  "schema_version": 1,
+  "package_id": "coding-ledger-v1",
+  "status": "prepared-not-run",
+  "skill_under_test": "../../SKILL.md",
+  "pipelines": [
+    {
+      "id": "thin",
+      "repo_template": "fixture/ledger-cli",
+      "input_files": ["fixture/inputs/thin-alpha.csv"],
+      "stages": [
+        {
+          "id": "P-thin",
+          "session": "fresh",
+          "prompt": "cases/thin/PROMPT_STEP_1.md",
+          "visible_inputs": [
+            "cases/thin/Decision.md",
+            "cases/thin/Draft.md",
+            "thin/repo"
+          ],
+          "required_outputs": [
+            "approved-plan.md",
+            "Implement.md",
+            "self-review.md",
+            "strict-final.md",
+            "open-items.md"
+          ]
+        },
+        {
+          "id": "E-thin",
+          "session": "fresh",
+          "prompt": "cases/thin/PROMPT_STEP_2.md",
+          "visible_inputs": [
+            "thin/repo",
+            "P-thin/approved-plan.md",
+            "P-thin/Implement.md",
+            "P-thin/strict-final.md",
+            "P-thin/open-items.md"
+          ],
+          "required_outputs": ["result.md", "verification.md"]
+        }
+      ]
+    },
+    {
+      "id": "thick",
+      "repo_template": "fixture/ledger-cli",
+      "input_files": [
+        "fixture/inputs/thick-alpha.csv",
+        "fixture/inputs/thick-beta.csv",
+        "fixture/inputs/thick-alpha-conflict.csv",
+        "fixture/inputs/thick-alpha-bad-header.csv"
+      ],
+      "stages": [
+        {
+          "id": "P-thick",
+          "session": "fresh",
+          "prompt": "cases/thick/PROMPT_STEP_1.md",
+          "visible_inputs": [
+            "cases/thick/Decision.md",
+            "cases/thick/Draft.md",
+            "thick/repo"
+          ],
+          "required_outputs": [
+            "approved-plan.md",
+            "Implement.md",
+            "Milestone-1.md",
+            "Milestone-2.md",
+            "self-review.md",
+            "strict-final.md",
+            "open-items.md"
+          ]
+        },
+        {
+          "id": "E-thick",
+          "session": "fresh-persistent-through-both-milestones",
+          "checkpoints": ["E-thick-M1", "E-thick-M2"],
+          "prompt": "cases/thick/PROMPT_STEP_2.md",
+          "visible_inputs": [
+            "thick/repo",
+            "P-thick/approved-plan.md",
+            "P-thick/Implement.md",
+            "P-thick/Milestone-1.md",
+            "P-thick/Milestone-2.md",
+            "P-thick/strict-final.md",
+            "P-thick/open-items.md"
+          ],
+          "required_outputs": [
+            "milestone-1-result.md",
+            "milestone-2-result.md",
+            "result.md",
+            "verification.md"
+          ]
+        }
+      ]
+    }
+  ]
+}
