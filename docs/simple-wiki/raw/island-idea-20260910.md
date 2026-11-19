@@ -1,0 +1,12 @@
+---
+class: material
+ingested: true
+integrated: true
+metadata:
+  source_repo: "https://github.com/xxYaOho/island"
+  source_commit: 2afe23b
+  source_path: docs/notes/idea-20260910.md
+---
+将 agents 独立到一个新空间中, 专门负责创建角色. 其它模块则是从这里引用角色. 我想把它命名为 "小酒馆", 其它技能则是按需从酒馆招募需要的成员角色.
+
+原始想法是因为在某个技能中完善的规范无法推广给其它技能, 需要一个个去适配. 目标我的角色设计框架比较固定: 角色, 前置要求, 规则, 输出, 契约.
