@@ -73,7 +73,7 @@ Island 是一座个人工作岛屿：**空白岛 + 基建**。提供规范与基
 
 只沉淀可复用知识, 一次性日志、临时命令输出、未经验证的猜测和普通 TODO 不应进入 wiki。
 
-- 处理代码任务时，若已有 `docs/simple-wiki/code/INDEX.md`，先读索引了解模块职责和关键关系。修改前核对源码、相关测试和契约。
+- 先读索引 `docs/simple-wiki/code/INDEX.md`，了解模块职责和关键关系。修改前核对源码、相关测试和契约。
 - 从 `docs/simple-wiki/wiki/INDEX.md` 了解项目已积累的知识和事实
 - `docs/simple-wiki/raw` 记录稳定原始材料：项目目标、决策、验证契约和研报等等。
 - `docs/simple-wiki/wiki` 是给未来 agent 查阅的知识文档, 当某个改动产生会影响未来 agent 判断的知识时，同步更新这些页面。
