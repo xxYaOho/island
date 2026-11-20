@@ -31,9 +31,17 @@ docs/simple-wiki/
 
 doctor 只报告机器可解析事实，不派遣、不迁移也不修复。使用其绝对路径 `WIKI_ROOT` 与 `SKILL_SCRIPTS_DIR`，以及当前目标所需的摘要或 `--detail ingest|maintain|all`；其他告警不得劫持已选目标。外部只读项目只允许 READ，或只读诊断，不得初始化、迁移或写入。
 
-`NEED_INIT=true` 且项目可写时，运行 `init.sh` 后复跑 doctor。`SCHEMA_STATUS=legacy|outdated` 时，先运行 `migrate.sh <WIKI_ROOT>`，再复跑 doctor；`skill-outdated|invalid` 禁止写入并报告。结构仍可解析时，READ 可以继续。细节见 [SCHEMA](reference/SCHEMA.md)。
+`NEED_INIT=true` 且项目可写时，运行 `init.sh` 后复跑 doctor。`SCHEMA_STATUS=legacy|outdated` 且项目可写时，按下方步骤升级。`SCHEMA_STATUS=skill-outdated|invalid` 时停止写入并报告。结构仍可解析时，READ 可以继续。细节见 [SCHEMA](reference/SCHEMA.md)。
 
 doctor 的关键收尾事实包括：`RAW_PENDING`、`RAW_PENDING_EVIDENCE`、`RAW_UNINTEGRATED`、`RAW_INGEST_ORPHAN`、`PAGE_CONTESTED_UNLINTED` 与 `RAW_INVALID_STATE`。`false/false` 为待处理，`true/false` 为待共享接线，`true/true` 为完成；`false/true` 是非法状态。
+
+### 版本升级
+
+1. 使用 doctor 返回的路径运行 `bash "$SKILL_SCRIPTS_DIR/migrate.sh" "$WIKI_ROOT"`。迁移成功后复跑 doctor，确认 `SCHEMA_STATUS=current`。
+2. 主会话对照新版指引，将适用的变更合并到目标项目根 `AGENTS.md` 的 `## Simple Wiki`。保留项目原有约定和其他章节，已有等价指引时沿用。文件或小节缺失时按模板补齐。 [项目指引模板](reference/AGENTS.md)
+3. 复读项目 `AGENTS.md`，确认新版指引已补齐。
+
+若项目可写，且 `SCHEMA_STATUS=current` 但新版指引尚未补齐，直接从第 2 步继续。
 
 ## INGEST
 

@@ -352,7 +352,8 @@ scan_sources() {
 }
 
 LINK_RESULTS=""
-for f in "${WIKI_FILES[@]}"; do
+for f in "${WIKI_FILES[@]:-}"; do
+  [[ -z "$f" ]] && continue
   name="$(basename "$f")"
 
   # 实算与 drift
@@ -445,7 +446,8 @@ while IFS= read -r tgt; do
 done <<<"$INDEX_TARGETS"
 
 # INDEX_UNLISTED: 页无对应条目
-for f in "${WIKI_FILES[@]}"; do
+for f in "${WIKI_FILES[@]:-}"; do
+  [[ -z "$f" ]] && continue
   name="$(basename "$f")"
   if ! grep -qF "](${name})" "$INDEX_FILE" 2>/dev/null; then
     INDEX_UNLISTED=$((INDEX_UNLISTED+1))

@@ -117,8 +117,13 @@ extract_managed_core() {
   ' "$1"
 }
 
-managed_core_matches_bundle() {
-  cmp -s <(extract_managed_core "$SCHEMA_FILE") <(extract_managed_core "$REF_SCHEMA")
+managed_core_supported() {
+  if cmp -s <(extract_managed_core "$SCHEMA_FILE") <(extract_managed_core "$REF_SCHEMA"); then
+    return 0
+  fi
+
+  # 独立版 v0.6.1 的受管核心曾补充 INDEX 的两种 token 口径。
+  [[ "$SCHEMA_FROM" == "v0.6.1" && "$(extract_managed_core "$SCHEMA_FILE" | cksum)" == "3554387473 6335" ]]
 }
 
 schema_markers_valid() {
@@ -212,7 +217,7 @@ else
     SCHEMA_COMPARISON=$?
   fi
   [[ $SCHEMA_COMPARISON -ne 3 ]] || fail "SKILL_OUTDATED"
-  if ! schema_markers_valid "$SCHEMA_FILE" || ! managed_core_matches_bundle; then
+  if ! schema_markers_valid "$SCHEMA_FILE" || ! managed_core_supported; then
     fail "SCHEMA_CORE_CONFLICT"
   fi
   new_tmp
@@ -239,13 +244,12 @@ while IFS= read -r raw_file; do
   integrated="$(fm_value "$raw_file" integrated)"
   [[ "$class" == "material" || "$class" == "evidence" ]] || fail "RAW_FRONTMATTER_INVALID:$(basename "$raw_file")"
   [[ "$ingested" == "true" || "$ingested" == "false" ]] || fail "RAW_FRONTMATTER_INVALID:$(basename "$raw_file")"
-  expected="$ingested"
-  if [[ "$integrated_count" == "1" && "$integrated" != "$expected" ]]; then
-    fail "RAW_STATE_CONFLICT:$(basename "$raw_file")"
-  fi
+  # 缺失字段沿用旧状态。已有的 integrated=false 也可能表示待接线。
   if [[ "$integrated_count" == "0" ]]; then
     RAW_FILES+=("$raw_file")
-    RAW_INTEGRATED+=("$expected")
+    RAW_INTEGRATED+=("$ingested")
+  elif [[ "$integrated" != "false" && "$integrated" != "$ingested" ]]; then
+    fail "RAW_STATE_CONFLICT:$(basename "$raw_file")"
   fi
 done < <(find "$RAW_DIR" -maxdepth 1 -type f -name '*.md' -print | sort)
 
